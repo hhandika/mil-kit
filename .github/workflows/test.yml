@@ -1,0 +1,33 @@
+name: Tests
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    tests:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                python-version: ["3.11", "3.12"]
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup uv
+              uses: astral-sh/setup-uv@v3
+              with:
+                  version: latest
+                  enable-cache: true
+                  cache-dependency-glob: "uv.lock"
+
+            - name: Sync (install) dependencies
+              # --frozen ensures the lockfile isn't updated in CI
+              # --python ensures the correct version from the matrix is used
+              run: uv sync --dev --frozen --python ${{ matrix.python-version }}
+
+            - name: Run tests
+              run: uv run pytest -q
