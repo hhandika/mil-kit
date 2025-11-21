@@ -1,7 +1,7 @@
 import argparse
 import sys
 from pathlib import Path
-from psd.processor import PSDProcessor
+from psd_toolkit.psd.processor import PSDProcessor
 from tqdm import tqdm
 
 

@@ -1,4 +1,4 @@
-from psd.processor import PSDProcessor
+from psd_toolkit.psd.processor import PSDProcessor
 from pathlib import Path
 import tempfile
 
