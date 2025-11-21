@@ -1,6 +1,6 @@
 [project]
 name = "psd-toolkit"
-version = "0.1.0"
+version = "0.1.1"
 description = "A toolkit for batch processing PSD files - hide text layers and export to PNG"
 readme = "README.md"
 requires-python = ">=3.10"
