@@ -6,7 +6,7 @@ Basic import test - verifies package can be imported without pytest dependency.
 import importlib
 import sys
 
-MODULE_NAME = "psd"
+MODULE_NAME = "psd_toolkit"
 
 
 def main():
