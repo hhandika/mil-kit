@@ -30,11 +30,21 @@ def main():
         action="store_true",
         help="Process subdirectories recursively",
     )
+    parser.add_argument(
+        "--max-resolution",
+        type=int,
+        help="Maximum resolution for output images",
+    )
 
     args = parser.parse_args()
 
     try:
-        job = BatchJob(args.dir, args.output, args.recursive, output_format=args.output_format)
+        job = BatchJob(
+            args.dir,
+            args.output,
+            args.recursive,
+            output_format=args.output_format,
+        )
         job.run()
     except Exception as e:
         print(f"Critical Error: {e}")
