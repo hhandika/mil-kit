@@ -43,7 +43,7 @@ mil-kit -d /path/to/psd/files
 Process recursively, specify output directory, and use JPEG format:
 
 ```bash
-mil-kit -d /path/to/psd/files -o /path/to/output -r -f jpeg
+mil-kit -d /path/to/psd/files -o /path/to/output -r -f jpeg --max-resolution 500
 ```
 
 ### Options
@@ -52,6 +52,7 @@ mil-kit -d /path/to/psd/files -o /path/to/output -r -f jpeg
 - `-o, --output`: Output directory for processed files (default: input directory)
 - `-f, --output-format`: Output image format (default: png)
 - `-r, --recursive`: Process subdirectories recursively
+- `--max-resolution`: Set maximum resolution for output images (if needed)
 
 ### Python API
 
@@ -66,6 +67,9 @@ processor = PSDProcessor("image.psd")
 processor.load()
 processor.hide_non_image_layers()
 processor.export("output.jpg", format="jpeg")
+
+# If you want to export with max resolution
+processor.export("output_resized.jpg", format="jpeg", max_resolution=500)
 
 # Batch process
 job = BatchJob(
