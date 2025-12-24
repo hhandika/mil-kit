@@ -1,6 +1,6 @@
 [project]
 name = "mil-kit"
-version = "0.4.3"
+version = "0.4.4"
 description = "A toolkit for processing the ASM's Mammal Image Library (MIL)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -26,12 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
 ]
-dependencies = [
-    "pillow>=12.0.0",
-    "psd-tools>=1.12.0",
-    "tomli>=2.3.0",
-    "tqdm>=4.67.1",
-]
+dependencies = ["pillow>=12.0.0", "psd-tools>=1.12.0", "tqdm>=4.67.1"]
 
 [project.urls]
 Homepage = "https://github.com/hhandika/mil-kit"
