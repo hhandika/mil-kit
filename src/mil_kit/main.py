@@ -1,6 +1,22 @@
 import argparse
 import sys
+from pathlib import Path
 from mil_kit.job import BatchJob
+import tomli
+
+def get_version() -> str:
+    """Extract version from pyproject.toml in current directory or parent dirs."""
+    toml_path = Path("pyproject.toml")
+    if not toml_path.exists():
+        raise FileNotFoundError("pyproject.toml not found in current directory")
+    
+    with open(toml_path, "rb") as f:
+        data = tomli.load(f)
+    
+    try:
+        return data["project"]["version"]
+    except KeyError:
+        raise ValueError("No [project.version] found in pyproject.toml")
 
 
 def main():
@@ -39,7 +55,7 @@ def main():
         "-v",
         "--version",
         action="version",
-        version="mil-kit 1.0.0",
+        version=get_version(),
         help="Show program's version number and exit"
     )
 
