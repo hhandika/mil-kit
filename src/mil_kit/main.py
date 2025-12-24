@@ -44,6 +44,7 @@ def main():
             args.output,
             args.recursive,
             output_format=args.output_format,
+            max_resolution=args.max_resolution,
         )
         job.run()
     except Exception as e:
