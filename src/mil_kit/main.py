@@ -35,8 +35,19 @@ def main():
         type=int,
         help="Maximum resolution for output images",
     )
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version="mil-kit 1.0.0",
+        help="Show program's version number and exit"
+    )
 
     args = parser.parse_args()
+
+    if len(sys.argv)==1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
 
     try:
         job = BatchJob(
