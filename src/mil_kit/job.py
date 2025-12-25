@@ -183,7 +183,8 @@ class BatchJob:
 
         self.stats["end_time"] = datetime.now()
         self._print_summary(total_files)
-        self._copy_failed_file()
+        if self.failed_files:
+            self._copy_failed_file()
 
     def _process_multiple_files(
         self, files: List[Path], total_files: int
