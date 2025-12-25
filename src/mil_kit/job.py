@@ -36,6 +36,7 @@ class BatchJob:
         output_format: str = "png",
         max_workers: Optional[int] = None,
         max_resolution: Optional[int] = None,
+        limit: Optional[int] = None,
         log_file: Optional[str] = None,
         overwrite: bool = True,
         verbose: bool = True,
@@ -58,6 +59,7 @@ class BatchJob:
         self.output_format = output_format.lower()
         self.max_workers = max_workers
         self.max_resolution = max_resolution
+        self.limit = limit
         self.overwrite = overwrite
         self.verbose = verbose
 
@@ -129,6 +131,22 @@ class BatchJob:
             )
             file_handler.setFormatter(file_format)
             self.logger.addHandler(file_handler)
+    
+    def _print_settings(self):
+        """Print the current settings of the batch job."""
+        self.logger.info("Batch Job Settings:")
+        self.logger.info(f"Input Directory: {self.input_dir}")
+        self.logger.info(f"Output Directory: {self.output_dir}")
+        self.logger.info(f"Recursive: {self.recursive}")
+        self.logger.info(f"Output Format: {self.output_format}")
+        self.logger.info(
+            f"Max Workers: {self.max_workers or 'Auto (CPU count)'}"
+        )
+        self.logger.info(f"Max Resolution: {self.max_resolution or 'No limit'}")
+        self.logger.info(f"Limit: {self.limit or 'No limit'}")
+        self.logger.info(f"Overwrite Existing: {self.overwrite}")
+        self.logger.info(f"Verbose Output: {self.verbose}")
+        self.logger.info("")
 
     def run(self):
         """
@@ -138,8 +156,11 @@ class BatchJob:
             Dictionary containing processing statistics
         """
         self.stats["start_time"] = datetime.now()
+        self._print_settings()
 
         files = list(self._get_files())
+        if self.limit is not None and len(files) > self.limit:
+            files = files[:self.limit]
         total_files = len(files)
 
         if total_files == 0:
@@ -151,13 +172,6 @@ class BatchJob:
 
         self.logger.info(
             f"Found {total_files} PSD file(s) in {self.input_dir}"
-        )
-        self.logger.info(f"Output directory: {self.output_dir}")
-        self.logger.info(
-            f"Output format: {self.output_format.upper()}"
-        )
-        self.logger.info(
-            f"Max workers: {self.max_workers or 'Auto (CPU count)'}\n"
         )
 
         if total_files == 1:
@@ -258,7 +272,8 @@ class BatchJob:
             count = processor.hide_non_image_layers()
 
             # Export to specified format
-            processor.export(dest_path, format=self.output_format)
+            processor.export(dest_path, format=self.output_format, 
+                             max_resolution=self.max_resolution)
 
             return (
                 True,

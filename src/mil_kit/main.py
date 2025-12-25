@@ -44,6 +44,11 @@ def main():
         help="Maximum resolution for output images",
     )
     parser.add_argument(
+        "--limit",
+        type=int,
+        help="Limit the number of files to process",
+    )
+    parser.add_argument(
         "-v",
         "--version",
         action="version",
@@ -64,6 +69,7 @@ def main():
             args.recursive,
             output_format=args.output_format,
             max_resolution=args.max_resolution,
+            limit=args.limit,
         )
         job.run()
     except Exception as e:
