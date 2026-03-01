@@ -1,6 +1,6 @@
 [project]
 name = "mil-kit"
-version = "0.5.0"
+version = "0.5.1"
 description = "A toolkit for processing the ASM's Mammal Image Library (MIL)."
 readme = "README.md"
 requires-python = ">=3.10"
