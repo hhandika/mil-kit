@@ -26,7 +26,6 @@ class PSDProcessor:
             raise RuntimeError("PSD not loaded. Call load() first.")
 
         self.hidden_count = 0
-        # descendants() iterates recursively through groups
         for layer in self.psd.descendants():
             if layer.kind == "type" and layer.visible:
                 layer.visible = False
