@@ -19,10 +19,12 @@ class WatermarkProcessor:
     ``apply_text_watermark()``, or either before ``load()``, will raise
     a ``RuntimeError``.
 
-    The watermark is rendered as a single copyright notice (e.g.
+    The watermark is rendered as a copyright notice (e.g.
     ``© 2024 Studio Name``) anchored to the bottom-left corner of the
     image with a semi-transparent dark pill background for legibility
-    on both light and dark images.
+    on both light and dark images. When the text is wider than the
+    available canvas width, it is automatically wrapped onto multiple
+    lines so no text is ever clipped.
 
     Attributes:
         file_path (Path): Absolute or relative path to the source image.
@@ -43,10 +45,11 @@ class WatermarkProcessor:
     """
 
     _COPYRIGHT_SYMBOL = "©"
-    _PADDING = 12
+    _PADDING = 8
     _MARGIN = 4
+    _LINE_SPACING = 4
     _FONT_DIVISOR = 40
-    _MIN_FONT_SIZE = 14
+    _MIN_FONT_SIZE = 12
     _BACKGROUND_COLOR = (0, 0, 0)
     _TEXT_COLOR = (255, 255, 255)
     _CORNER_RADIUS = 6
@@ -111,14 +114,22 @@ class WatermarkProcessor:
 
         Layout:
             - Font size scales with canvas width (``width // 40``), with a
-              minimum of 14 px, ensuring legibility across image sizes.
-            - The text is drawn inside a rounded-rectangle pill with a
+              minimum of ``_MIN_FONT_SIZE`` px, ensuring legibility across
+              image sizes.
+            - If the full text exceeds the available canvas width (minus
+              margins and padding), it is word-wrapped onto multiple lines.
+              Each line is fitted greedily word by word so the pill never
+              overflows the canvas horizontally.
+            - The text block is drawn inside a rounded-rectangle pill with a
               semi-transparent dark background so it remains readable on
               both light and dark source images.
-            - A fixed margin of 16 px separates the pill from the canvas edges.
-            - The pill background and text alpha are both derived from
+            - ``_LINE_SPACING`` extra pixels are added between each wrapped
+              line for readability.
+            - A margin of ``_MARGIN`` px separates the pill from the canvas
+              edges on all sides.
+            - Both the pill background and text alpha are derived from
               ``self.opacity`` so a single parameter controls the overall
-              intensity of the watermark.
+              watermark intensity.
 
         The watermark layer is composited onto ``self.image`` using
         ``Image.alpha_composite`` and the result is stored in
@@ -132,19 +143,29 @@ class WatermarkProcessor:
 
         layer = Image.new("RGBA", self.image.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(layer)
-        font = self._load_font(size=max(self._MIN_FONT_SIZE, self.image.width // self._FONT_DIVISOR))
+        font = self._load_font(
+            size=max(self._MIN_FONT_SIZE, self.image.width // self._FONT_DIVISOR)
+        )
 
-        bbox = font.getbbox(self.watermark_text)
-        text_w = bbox[2] - bbox[0]
-        text_h = bbox[3] - bbox[1]
+        max_text_width = self.image.width - (self._MARGIN + self._PADDING) * 2
+        lines = self._wrap_text(self.watermark_text, font, max_text_width, draw)
+
+        line_height = self._line_height(font, draw)
+        total_text_h = (
+            line_height * len(lines)
+            + self._LINE_SPACING * (len(lines) - 1)
+        )
+        widest_line_w = max(
+            draw.textlength(line, font=font) for line in lines
+        )
 
         bg_alpha = int(180 * self.opacity)
         text_alpha = int(255 * self.opacity)
 
         pill_x0 = self._MARGIN
-        pill_y0 = self.image.height - text_h - (self._PADDING * 2) - self._MARGIN
-        pill_x1 = pill_x0 + text_w + (self._PADDING * 2)
-        pill_y1 = pill_y0 + text_h + (self._PADDING * 2)
+        pill_y0 = self.image.height - total_text_h - (self._PADDING * 2) - self._MARGIN
+        pill_x1 = pill_x0 + int(widest_line_w) + (self._PADDING * 2)
+        pill_y1 = pill_y0 + total_text_h + (self._PADDING * 2)
 
         draw.rounded_rectangle(
             [pill_x0, pill_y0, pill_x1, pill_y1],
@@ -152,12 +173,16 @@ class WatermarkProcessor:
             fill=(*self._BACKGROUND_COLOR, bg_alpha),
         )
 
-        draw.text(
-            (pill_x0 + self._PADDING, pill_y0 + self._PADDING),
-            self.watermark_text,
-            fill=(*self._TEXT_COLOR, text_alpha),
-            font=font,
-        )
+        text_x = pill_x0 + self._PADDING
+        text_y = pill_y0 + self._PADDING
+        for line in lines:
+            draw.text(
+                (text_x, text_y),
+                line,
+                fill=(*self._TEXT_COLOR, text_alpha),
+                font=font,
+            )
+            text_y += line_height + self._LINE_SPACING
 
         self.watermarked = Image.alpha_composite(self.image, layer)
 
@@ -213,6 +238,70 @@ class WatermarkProcessor:
             output = output.convert("RGB")
 
         output.save(output_path, format=format.upper())
+
+    @staticmethod
+    def _wrap_text(
+        text: str,
+        font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+        max_width: int,
+        draw: ImageDraw.ImageDraw,
+    ) -> list[str]:
+        """
+        Word-wrap ``text`` so no rendered line exceeds ``max_width`` pixels.
+
+        Words are added to the current line greedily. When adding the next
+        word would exceed ``max_width``, the current line is flushed and a
+        new line is started. A single word that is itself wider than
+        ``max_width`` is placed on its own line without splitting — it will
+        overflow slightly rather than break mid-word.
+
+        Args:
+            text (str): The full watermark string to wrap.
+            font: The font used to measure rendered text widths.
+            max_width (int): Maximum allowed line width in pixels.
+            draw (ImageDraw.ImageDraw): Draw context used for text measurement.
+
+        Returns:
+            list[str]: Ordered list of wrapped lines ready for rendering.
+        """
+        words = text.split()
+        lines: list[str] = []
+        current = ""
+
+        for word in words:
+            candidate = f"{current} {word}".strip()
+            if draw.textlength(candidate, font=font) <= max_width:
+                current = candidate
+            else:
+                if current:
+                    lines.append(current)
+                current = word
+
+        if current:
+            lines.append(current)
+
+        return lines
+
+    @staticmethod
+    def _line_height(
+        font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+        draw: ImageDraw.ImageDraw,
+    ) -> int:
+        """
+        Return the rendered pixel height of a single line of text.
+
+        Uses a representative uppercase string to capture ascenders and
+        descenders consistently across different font sizes.
+
+        Args:
+            font: The font to measure.
+            draw (ImageDraw.ImageDraw): Draw context used for measurement.
+
+        Returns:
+            int: Line height in pixels.
+        """
+        bbox = font.getbbox("Ag")
+        return bbox[3] - bbox[1]
 
     @staticmethod
     def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
