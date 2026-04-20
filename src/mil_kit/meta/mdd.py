@@ -36,6 +36,10 @@ class MetadataForMdd:
             output_path = output_path.with_suffix(output_path.suffix + ".json")
         merged_df = self._load_metadata()
         merged_df.write_json(output_path)
+        if not self._missing_images(merged_df):
+            print(f"Successfully exported metadata to {output_path}")
+        else:
+            print(f"Missing images, metadata exported to {output_path} with missing image data")
 
     def _load_metadata(self) -> pl.DataFrame:
         mil_df = self._load_file(self.mil_path)
@@ -76,16 +80,18 @@ class MetadataForMdd:
         merged_df = mil_df.join(mdd_df, on="scientificName", how="left")
         img_df = self._build_img_df()
         merged_df = merged_df.join(img_df, on="milId", how="left")
-        self._check_missing_images(merged_df)
+
         return merged_df.drop("scientificName")
     
-    def _check_missing_images(self, merged_df: pl.DataFrame) -> None:
+    def _missing_images(self, merged_df: pl.DataFrame) -> bool:
         """Check for missing images. Raise an error if any images are missing."""
         missing_images = merged_df.filter(pl.col("orientation").is_null())
         if missing_images.height > 0:
             missing_mil_ids = missing_images.select("milId").to_series().to_list()
             missing_mil_ids.sort()
-            raise ValueError(f"Missing {len(missing_mil_ids)} images: {missing_mil_ids}")
+            print(f"Missing {len(missing_mil_ids)} images: {missing_mil_ids}")
+            return True
+        return False
     
     def _build_img_df(self) -> pl.DataFrame:
         """Build a dataframe of all images in the MIL image directory. Return a dataframe of images."""
