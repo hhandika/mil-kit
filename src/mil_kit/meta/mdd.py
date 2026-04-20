@@ -84,7 +84,8 @@ class MetadataForMdd:
         missing_images = merged_df.filter(pl.col("orientation").is_null())
         if missing_images.height > 0:
             missing_mil_ids = missing_images.select("milId").to_series().to_list()
-            raise ValueError(f"Missing images found: {missing_mil_ids}")
+            missing_mil_ids.sort()
+            raise ValueError(f"Missing {len(missing_mil_ids)} images: {missing_mil_ids}")
     
     def _build_img_df(self) -> pl.DataFrame:
         """Build a dataframe of all images in the MIL image directory. Return a dataframe of images."""

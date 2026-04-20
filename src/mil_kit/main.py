@@ -201,6 +201,7 @@ def run_mdd(args: argparse.Namespace) -> None:
     job = MetadataForMdd(
         mil_path=args.mil_file,
         mdd_path=args.mdd_file,
+        mil_img_dir=args.mil_img_dir,
     )
     job.to_json(args.output)
 

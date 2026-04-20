@@ -310,14 +310,19 @@ class WatermarkJob:
                 ``message`` is a human-readable status string.
         """
         try:
-            watermark_text = self._resolve_watermark_text(image_path)
+            watermark_text, queried_key = self._resolve_watermark_text(image_path)
 
             if not watermark_text:
                 self.no_metadata_files.append(image_path)
                 self.stats["no_metadata"] += 1
+                key_info = (
+                    f"'{image_path.stem}' (key: '{queried_key}')"
+                    if queried_key and queried_key != image_path.stem
+                    else f"'{image_path.stem}'"
+                )
                 return (
                     False,
-                    f"? {image_path.name}: No metadata match for MIL# '{image_path.stem}' — queued for review",
+                    f"? {image_path.name}: No metadata match for MIL# {key_info} — queued for review",
                 )
 
             dest_path = self._generate_output_path(image_path)
@@ -351,27 +356,39 @@ class WatermarkJob:
         except Exception as e:
             return False, f"✗ {image_path.name}: Processing failed - {e}"
 
-    def _resolve_watermark_text(self, image_path: Path) -> Optional[str]:
+    def _resolve_watermark_text(
+        self, image_path: Path
+    ) -> tuple[Optional[str], Optional[str]]:
         """
         Determine the watermark text for a given image file.
 
         Checks the metadata lookup table first using the file stem as the
         MIL number key. Falls back to the static ``watermark_text`` if no
-        metadata record is found. Returns ``None`` if neither source yields
-        a value, signalling that the file has no resolvable watermark.
+        metadata record is found. Returns ``(None, queried_key)`` if neither
+        source yields a value, where ``queried_key`` is the normalised key
+        that was actually looked up in the records dict.
 
         Args:
             image_path (Path): Source image whose stem is used as the lookup key.
 
         Returns:
-            str | None: Resolved watermark text, or ``None`` if unresolvable.
+            tuple[str | None, str | None]: ``(watermark_text, queried_key)``.
+                ``watermark_text`` is ``None`` if unresolvable; ``queried_key``
+                is the normalised MIL key used for the lookup (or the raw stem
+                if normalisation failed).
         """
+        queried_key: Optional[str] = None
         if self.metadata:
+            queried_key = self.metadata.normalize_stem(image_path.stem)
+            self.logger.debug(
+                f"Lookup: raw stem='{image_path.stem}' → key='{queried_key}' "
+                f"in {len(self.metadata.records)} records"
+            )
             text = self.metadata.get_watermark_text(image_path.stem)
             if text:
-                return text
+                return text, queried_key
 
-        return self.watermark_text
+        return self.watermark_text, queried_key
 
     def _update_stats(self, success: bool, failed_path: Optional[Path] = None) -> None:
         """
