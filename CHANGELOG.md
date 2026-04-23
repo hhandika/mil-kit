@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.0] - 2026-4-24
 
-- Add image orientation information.
+- Add orientation information to MIL metadata.
+- Add warning for missing images.
+- Include images with unknown photographers in MIL metadata.
 
 ## [0.8.0] - 2026-4-18
 

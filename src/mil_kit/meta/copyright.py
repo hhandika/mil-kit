@@ -118,25 +118,50 @@ class MetadataParser:
             .select([self.mil_col, self.photographer_col])
             .with_columns([
                 pl.col(self.mil_col).cast(pl.Utf8).str.strip_chars(),
-                pl.col(self.photographer_col).cast(pl.Utf8).str.strip_chars(),
+                pl.col(self.photographer_col)
+                .cast(pl.Utf8)
+                .str.strip_chars()
+                .fill_null("")
             ])
-            .drop_nulls()
+            .drop_nulls([self.mil_col])
             .filter(
                 pl.col(self.mil_col).str.len_chars().gt(0)
-                & pl.col(self.photographer_col).str.len_chars().gt(0)
             )
         )
 
-        self.records = {
-            row[self.mil_col]: self._format_watermark(row[self.photographer_col])
-            for row in df.iter_rows(named=True)
-        }
+        self.records = {}
+        for row in df.iter_rows(named=True):
+            mil_key = self._to_int_str(row[self.mil_col])
+            if mil_key is not None:
+                photographer = row[self.photographer_col]
+                if not photographer:
+                    photographer = "Unknown"
+                self.records[mil_key] = self._format_watermark(photographer)
 
         return self.records
+
+    def normalize_stem(self, file_stem: str) -> str | None:
+        """
+        Return the normalised integer key for a given file stem.
+
+        Convenience wrapper around :meth:`_to_int_str` used by callers that
+        need to inspect the lookup key without performing a full lookup.
+
+        Args:
+            file_stem (str): Raw file stem string to normalise.
+
+        Returns:
+            str | None: Plain integer string, or ``None`` if not parseable.
+        """
+        return self._to_int_str(file_stem.strip())
 
     def get_watermark_text(self, file_stem: str) -> str | None:
         """
         Return the watermark text for a given file stem (MIL number).
+
+        Both the file stem and the MIL numbers stored in ``records`` are
+        normalised to plain integer strings (e.g. ``"2314.0"`` → ``"2314"``)
+        so that float-formatted values read from Excel always match.
 
         Args:
             file_stem (str): The image file stem to look up, expected to
@@ -147,7 +172,31 @@ class MetadataParser:
                 (e.g. ``"HA York / ASM-MIL"``) if a match is found,
                 or ``None`` if the file stem is not in the records.
         """
-        return self.records.get(file_stem.strip())
+        key = self._to_int_str(file_stem.strip())
+        if key is None:
+            return None
+        return self.records.get(key)
+
+    @staticmethod
+    def _to_int_str(value: str) -> str | None:
+        """
+        Convert a string representation of a number to a plain integer string.
+
+        Handles both integer strings (``"2314"``) and float strings that Excel
+        may produce (``"2314.0"``). Returns ``None`` if the value cannot be
+        parsed as a number.
+
+        Args:
+            value (str): The raw string to normalise.
+
+        Returns:
+            str | None: Plain integer string (e.g. ``"2314"``), or ``None``
+                if parsing fails.
+        """
+        try:
+            return str(int(float(value)))
+        except (ValueError, TypeError):
+            return None
 
     def _load_file(self) -> pl.DataFrame:
         """
