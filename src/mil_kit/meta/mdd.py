@@ -35,10 +35,12 @@ class MetadataForMdd:
         if output_path.suffix.lower() != ".json":
             output_path = output_path.with_suffix(output_path.suffix + ".json")
         merged_df = self._load_metadata()
-        merged_df.write_json(output_path)
         if not self._missing_images(merged_df):
+            merged_df.write_json(output_path)
             print(f"Successfully exported metadata to {output_path}")
         else:
+            valid_df = self._filter_missing_images(merged_df)
+            valid_df.write_json(output_path)
             print(f"Missing images, metadata exported to {output_path} with missing image data")
 
     def _load_metadata(self) -> pl.DataFrame:
@@ -83,6 +85,10 @@ class MetadataForMdd:
 
         return merged_df.drop("scientificName")
     
+    def _filter_missing_images(self, merged_df: pl.DataFrame) -> pl.DataFrame:
+        """Filter out missing images. Return a dataframe without missing images."""
+        return merged_df.filter(~pl.col("orientation").is_null())
+
     def _missing_images(self, merged_df: pl.DataFrame) -> bool:
         """Check for missing images. Raise an error if any images are missing."""
         missing_images = merged_df.filter(pl.col("orientation").is_null())
