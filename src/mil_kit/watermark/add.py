@@ -96,6 +96,7 @@ class WatermarkProcessor:
     def load(self) -> None:
         """
         Opens the source image from ``file_path`` and converts it to RGBA mode.
+        If the file is a PSD, it merges all image layers while ignoring shape and text layers.
 
         Converting to RGBA ensures a consistent alpha channel is present before
         compositing, regardless of the original image mode (e.g. RGB, L, P).
@@ -104,7 +105,22 @@ class WatermarkProcessor:
             IOError: If the file cannot be opened or is not a valid image format.
         """
         try:
-            self.image = Image.open(self.file_path).convert("RGBA")
+            if self.file_path.suffix.lower() == ".psd":
+                from psd_tools import PSDImage
+
+                psd = PSDImage.open(self.file_path)
+                for layer in psd.descendants():
+                    if layer.kind in ("shape", "type"):
+                        layer.visible = False
+                    else:
+                        layer.visible = True
+                        
+                composite = psd.composite()
+                if composite is None:
+                    raise IOError("No visible image layers found in PSD to composite.")
+                self.image = composite.convert("RGBA")
+            else:
+                self.image = Image.open(self.file_path).convert("RGBA")
         except Exception as e:
             raise IOError(f"Failed to open image: {e}")
         
